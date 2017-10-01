@@ -1,0 +1,8 @@
+[package]
+name = "rust_pcap"
+version = "0.1.0"
+authors = ["Josh Madden <cyrex562@gmail.com>"]
+
+[dependencies]
+libc = "0.2"
+libloading = "0.4"
