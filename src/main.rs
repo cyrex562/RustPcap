@@ -29,7 +29,7 @@ struct PcapAddr {
 
 #[repr(C, packed)]
 struct PcapInterface {
-    pcap_if: *mut libc::c_void,
+    next: *mut libc::c_void,
     name: *mut libc::c_char,
     description: *mut libc::c_char,
     addresses: *mut PcapAddr,
@@ -40,6 +40,24 @@ struct PcapInterface {
 struct PcapPktHdr {
 
 }
+
+// sa_family constants
+//#define AF_UNSPEC 0
+const AF_UNSPEC: u16 = 0;
+//#define AF_UNIX 1 // Unix domain sockets
+const AF_UNIX: u16 = 1;
+//#define AF_INET 2 // IPv4
+const AF_INET: u16 = 2;
+//#define AF_INET6 23 // IPv6
+const AF_INET6: u16 = 23;
+//#define AF_NETLINK 16
+const AF_LLC: u16 = 26;
+//#define AF_ROUTE AF_NETLINK
+//#define AF_PACKET 17// packet family
+//#define AF_NETBIOS 17
+//#define AF_LLC 26 // linux LLC
+//#define AF_BLUETOOTH 32
+//#define AF_BRIDGE 7 // multi-proto bridge
 
 // typedef void(*) pcap_handler(u_char *user,
 //                              const struct pcap_pkthdr *pkt_header,
@@ -224,7 +242,74 @@ fn main() {
 
         let first_dev: &PcapInterface = &*alldevs;
         let first_name = CStr::from_ptr(first_dev.name).to_string_lossy().into_owned();
-        println!("first name: {}", first_name);
+        let description = CStr::from_ptr(first_dev.description).to_string_lossy().into_owned();
+        println!("name: {}", first_name);
+        println!("description: {}", description);
+        let first_dev_addr: &PcapAddr = &*first_dev.addresses;
+
+        let mut addr_rp = first_dev_addr.addr;
+        let mut addr: &SockAddr = &*addr_rp;
+        println!("address family: {}", addr.sa_family);
+        if addr.sa_family == AF_INET {
+            let ip4_addr_str = format!("{}.{}.{}.{}", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3]);
+            println!("address: {}", ip4_addr_str);
+        }
+        // let mut netmask_rp = first_dev_addr.netmask;
+        // let mut bcast_rp = first_dev_addr.broadaddr;
+        // let mut bcast: &SockAddr = &*bcast_rp;
+        let mut next_addr_rp = first_dev_addr.next as *mut PcapAddr;
+
+        while !next_addr_rp.is_null() {
+            let next_addr: &PcapAddr = &*next_addr_rp;
+            // address
+            addr_rp = next_addr.addr;
+            addr = &*addr_rp;
+            println!("address family: {}", addr.sa_family);
+            if addr.sa_family == AF_INET {
+                let ip4_addr_str = format!("{}.{}.{}.{}", addr.sa_data[2], addr.sa_data[3], addr.sa_data[0], addr.sa_data[1]);
+                println!("address: {}", ip4_addr_str);
+            }
+            // netmask
+            // netmask_rp = next_addr.netmask;
+            // broadcast
+            // bcast_rp = next_addr.broadaddr;
+            next_addr_rp = next_addr.next as *mut PcapAddr;
+        }
+
+        let mut next_dev_rp = first_dev.next as *mut PcapInterface;
+        while !next_dev_rp.is_null() {
+            let next_dev: &PcapInterface = &*next_dev_rp;
+            let next_name = CStr::from_ptr(next_dev.name).to_string_lossy().into_owned();
+            let next_description = CStr::from_ptr(next_dev.description).to_string_lossy().into_owned();
+            let next_dev_addr: &PcapAddr = &*next_dev.addresses;
+            println!("name: {}", next_name);
+            println!("description: {}", next_description);
+
+            let next_dev_addr: &PcapAddr = &*next_dev.addresses;
+            addr_rp = next_dev_addr.addr;
+            addr = &*addr_rp;
+            println!("address family: {}", addr.sa_family);
+            if addr.sa_family == AF_INET {
+                let ip4_addr_str = format!("{}.{}.{}.{}", addr.sa_data[0], addr.sa_data[1], addr.sa_data[2], addr.sa_data[3]);
+                println!("address: {}", ip4_addr_str);
+            }
+
+            next_addr_rp = next_dev_addr.next as *mut PcapAddr;
+            while !next_addr_rp.is_null() {
+                let next_addr: &PcapAddr = &*next_addr_rp;
+                // address
+                addr_rp = next_addr.addr;
+                addr = &*addr_rp;
+                println!("address family: {}", addr.sa_family);
+                if addr.sa_family == AF_INET {
+                    let ip4_addr_str = format!("{}.{}.{}.{}", addr.sa_data[2], addr.sa_data[3], addr.sa_data[0], addr.sa_data[1]);
+                    println!("address: {}", ip4_addr_str);
+                }
+                next_addr_rp = next_addr.next as *mut PcapAddr;
+            }
+
+            next_dev_rp = next_dev.next as *mut PcapInterface;
+        }
 
         println!("freeing alldevs");
         pcap_freealldevs(alldevs as *mut libc::c_void);
