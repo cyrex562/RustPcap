@@ -74,9 +74,9 @@ extern fn pcap_handler(user: *mut u8,
 extern "C" {
     // fn SetEnvironmentVariableA(n: *const u8, v: *const u8) -> libc::c_int;
     // static mut rl_prompt: *const libc::c_char;
-    fn pcap_handler(user: *mut u8,
-                    pcap_pkthdr: *const PcapPktHdr,
-                    pkt_data: *const u8);
+    // fn pcap_handler(user: *mut u8,
+    //                 pcap_pkthdr: *const PcapPktHdr,
+    //                 pkt_data: *const u8);
 
     // pcap_t * pcap_open_live (const char *device,
     //                          int snaplen,
@@ -219,6 +219,9 @@ type PcapFindAllDevs = unsafe fn (alldevsp: *mut *mut libc::c_void,
 // fn pcap_freealldevs(alldevsp: *mut PcapInterface);
 type PcapFreeAllDevs = unsafe fn (alldevsp: *mut libc::c_void);
 
+pcap_findalldevs: libloading::Symbol<PcapFindAllDevs>;
+
+
 fn main() {
     println!("PCAP program");
 
@@ -310,6 +313,8 @@ fn main() {
 
             next_dev_rp = next_dev.next as *mut PcapInterface;
         }
+
+
 
         println!("freeing alldevs");
         pcap_freealldevs(alldevs as *mut libc::c_void);
