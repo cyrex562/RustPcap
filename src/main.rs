@@ -7,6 +7,8 @@ use std::ffi::CStr;
 use std::str;
 use libloading::{Library, Symbol};
 
+#[cfg(windows)] extern create winapi;
+
 pub enum PcapCapInstance {}
 
 pub enum PcapDumper {}
@@ -62,158 +64,10 @@ const AF_LLC: u16 = 26;
 //#define AF_BLUETOOTH 32
 //#define AF_BRIDGE 7 // multi-proto bridge
 
-// typedef void(*) pcap_handler(u_char *user,
-//                              const struct pcap_pkthdr *pkt_header,
-//                              const u_char *pkt_data)
-// extern fn pcap_handler(user: *mut u8,
-//                       pkt_header: *const PcapPktHdr,
-//                       pkt_data: *const u8) {
-//                           println!("callback from pcap function");
-//                       }
-
 // #[cfg(all(target_os = "win32", target_arch="x86"))]
 // #[link(name = "wpcap")]
 
-// extern "C" {
-//     // fn SetEnvironmentVariableA(n: *const u8, v: *const u8) -> libc::c_int;
-//     // static mut rl_prompt: *const libc::c_char;
-//     // fn pcap_handler(user: *mut u8,
-//     //                 pcap_pkthdr: *const PcapPktHdr,
-//     //                 pkt_data: *const u8);
 
-//     // pcap_t * pcap_open_live (const char *device,
-//     //                          int snaplen,
-//     //                          int promisc,
-//     //                          int to_ms,
-//     //                          char *ebuf)
-//     fn pcap_open_live(device: *const libc::c_char,
-//                       snaplen: u32,
-//                       promisc: u32,
-//                       timeout: u32,
-//                       error_buf: *mut libc::c_char) -> *mut PcapCapInstance;
-
-//     // pcap_t * pcap_open_dead (int linktype, int snaplen)
-//     fn pcap_open_dead(linktype: int, snaplen: int) -> *mut PcapCapInstance;
-
-//     // pcap_t * 	pcap_open_offline (const char *fname, char *errbuf)
-//     fn pcap_open_offline(fname: *const libc::c_char,
-//                          errbuf: *mut libc::c_char) -> *mut PcapCapInstance;
-
-//     // pcap_dumper_t * 	pcap_dump_open (pcap_t *p, const char *fname)
-//     fn pcap_dump_open(p: *const libc::c_void,
-//                       fname: *const libc::c_char) -> *mut PcapCapInstance;
-
-//     // int 	pcap_setnonblock (pcap_t *p, int nonblock, char *errbuf)
-//     fn pcap_setnonblock(p: *mut libc::c_void,
-//                         nonblock: int,
-//                         errbuf: *mut libc::c_char) -> libc::c_int;
-
-//     // int 	pcap_getnonblock (pcap_t *p, char *errbuf)
-//     fn pcap_getnonblock(p: *mut PcapCapInstance,
-//                         errbuf: *mut libc::c_char) -> libc::c_int;
-
-//     // int 	pcap_findalldevs (pcap_if_t **alldevsp, char *errbuf)
-//     fn pcap_findalldevs(alldevsp: *mut *mut PcapInterface,
-//                         errbuf: *mut libc::c_char) -> libc::c_int;
-
-//     // void 	pcap_freealldevs (pcap_if_t *alldevsp)
-//     fn pcap_freealldevs(alldevsp: *mut PcapInterface);
-
-//     // char * 	pcap_lookupdev (char *errbuf)
-//     fn pcap_lookupdev(errbuf: *mut libc::c_char) -> *mut libc::c_char;
-
-//     // int 	pcap_lookupnet (const char *device, bpf_u_int32 *netp, bpf_u_int32 *maskp, char *errbuf)
-//     fn pcap_lookupnet(device: *const libc::c_char,
-//                         netp: *mut libc::c_int,
-//                         maskp: *mut libc::c_int,
-//                         errbuf: *mut libc::c_char) -> libc::c_int;
-
-//     // int 	pcap_dispatch (pcap_t *p, int cnt, pcap_handler callback, u_char *user)
-//     fn pcap_dispatch(p: *mut PcapCapInstance,
-//                      callback: extern fn(user: *mut libc::c_char,
-//                                          pkt_hdr: *const PcapPktHdr,
-//                                          pkt_data: *const u8),
-//                      user: *mut u8) -> libc::c_int;
-
-//     // int 	pcap_loop (pcap_t *p, int cnt, pcap_handler callback, u_char *user)
-//     fn pcap_loop(p: *mut PcapCapInstance,
-//                  cnt: u32,
-//                  callback: extern fn(user: *mut libc::c_char,
-//                                          pkt_hdr: *const PcapPktHdr,
-//                                          pkt_data: *const u8),
-//                  user: *mut u8) -> libc::c_int;
-
-//     // u_char * 	pcap_next (pcap_t *p, struct pcap_pkthdr *h)
-//     fn pcap_next(p: *mut PcapCapInstance,
-//                  h: *mut PcapPktHdr) -> *mut u8;
-
-//     // int 	pcap_next_ex (pcap_t *p, struct pcap_pkthdr **pkt_header, const u_char **pkt_data)
-//     fn pcap_next_ex(p: *mut PcapCapInstance,
-//                     pkt_header: *mut *mut PcapPktHdr,
-//                     pkt_data: *const *const u8) -> libc::c_int;
-
-//     // void 	pcap_breakloop (pcap_t *)
-//     fn pcap_breakloop(p: *mut PcapCapInstance);
-
-//     // int 	pcap_sendpacket (pcap_t *p, u_char *buf, int size)
-//     fn pcap_sendpacket(p: *mut PcapCapInstance,
-//                         buf: *mut u8,
-//                         size: int) -> libc::c_int;
-
-//     // void 	pcap_dump (u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
-//     fn pcap_dump(user: *mut u8,
-//                     h: *const PcapPktHdr,
-//                     sp: *mut u8);
-
-//     // long 	pcap_dump_ftell (pcap_dumper_t *)
-//     fn pcap_dump_ftell(save_file: *mut PcapDumper) -> libc::c_int;
-
-//     // int 	pcap_compile (pcap_t *p, struct bpf_program *fp, char *str, int optimize, bpf_u_int32 netmask)
-//     fn pcap_compile(p: *mut PcapCapInstance,
-//                     fp: *mut BpfProgram,
-//                     filter_str: *mut libc::c_char,
-//                     optimize: u32,
-//                     netmask: u32) -> libc::c_int;
-
-//     // int 	pcap_compile_nopcap (int snaplen_arg, int linktype_arg, struct bpf_program *program, char *buf, int optimize, bpf_u_int32 mask)
-//     fn pcap_compile_nopcap(snaplen_arg: u32,
-//                             linktype_arg: u32,
-//                             program: *mut BpfProgram,
-//                             optimize: u32,
-//                             mask: u32) -> libc::c_int;
-
-//     // int 	pcap_setfilter (pcap_t *p, struct bpf_program *fp)
-//     fn pcap_setfilter(p: *mut PcapCapInstance,
-//                         fp: *mut BpfProgram) -> libc::c_int;
-
-//     // void 	pcap_freecode (struct bpf_program *fp)
-//     fn pcap_freecode(fp: *mut BpfProgram);
-
-//     // int 	pcap_datalink (pcap_t *p)
-//     // int 	pcap_list_datalinks (pcap_t *p, int **dlt_buf)
-//     // int 	pcap_set_datalink (pcap_t *p, int dlt)
-//     // int 	pcap_datalink_name_to_val (const char *name)
-//     // const char * 	pcap_datalink_val_to_name (int dlt)
-//     // const char * 	pcap_datalink_val_to_description (int dlt)
-//     // int 	pcap_snapshot (pcap_t *p)
-//     // int 	pcap_is_swapped (pcap_t *p)
-//     // int 	pcap_major_version (pcap_t *p)
-//     // int 	pcap_minor_version (pcap_t *p)
-//     // FILE * 	pcap_file (pcap_t *p)
-//     // int 	pcap_stats (pcap_t *p, struct pcap_stat *ps)
-//     // void 	pcap_perror (pcap_t *p, char *prefix)
-//     // char * 	pcap_geterr (pcap_t *p)
-//     // char * 	pcap_strerror (int error)
-//     // const char * 	pcap_lib_version (void)
-//     // void 	pcap_close (pcap_t *p)
-//     fn pcap_close(p: *mut PcapCapInstance);
-
-//     // FILE * 	pcap_dump_file (pcap_dumper_t *p)
-//     // int 	pcap_dump_flush (pcap_dumper_t *p)
-//     // void 	pcap_dump_close (pcap_dumper_t *p)
-
-//     // https://www.winpcap.org/docs/docs_40_2/html/group__wpcapfunc.html#gc429cf4f27205111259ff7b02a82eeab
-// }
 
 type PcapFindAllDevs = unsafe fn (alldevsp: *mut *mut libc::c_void,
                                   errbuf: *mut u8) -> libc::c_int;
@@ -284,6 +138,72 @@ fn call_findalldevs() -> *mut PcapInterface {
         }
         return alldevs;
     }
+}
+
+/**
+ * MAX_KEY_LENGTH 255
+ * MAX_VALUE_NAME 16383
+ * RegOpenKeyEx(HKEY_LOCAL_MACHINE, TEXT("subkey\\key"), 0, KEY_READ, &hTestKey) == ERROR_SUCCESS
+ * TCHAR achKey[MAX_KEY_LENGTH] // buffer for subkey name
+ * DWORD cbName // size of name string
+ * TCHAR achClass[MAX_PATH] // buffer for class name
+ * DWORD cchClassName = MAX_PATH // size of class string
+ * DWORD cSubKeys = 0 // number of subkeys
+ * DWORD cbMaxSubKey // longest subkey size
+ * DWORD cchMaxClass // longest class string
+ * DWORD cbMaxValueData // longest value data
+ * DWORD cbSecurityDescriptor // size of security descriptor
+ * FILETIME ftLastWriteTime // last write time
+ * TCHAR achValue[MAX_VALUE_NAME]
+ * DWORD cchValue = MAX_VALUE_NAME
+ *
+ * retCode = RegQueryInfoKey(hKey, achClass, &cchClassName, NULL, &cSubKeys, &cbMaxSubKey, &cchMaxClass, &cValues, &cchMaxValue, &cbMaxValueData, &cbSecurityDescriptor, &ftLastWriteTime);
+ *
+ * if (cSubKeys)
+ * for (i = 0; i < cSubKeys; i++)
+ * cbName = MAX_KEY_LENGTH
+ *
+ * retCode = RegEnumKeyEx(hKey, i, achKey, &cbName, NULL, NULL, NULL, &ftLastWriteTime)
+ * if (retCode == ERROR_SUCCESS) _tprintf(TEXT, i+1, achKey)
+ *
+ * if (cValues)
+ * for (i = 0; retCode = ERROR_SUCCESS; i < cValues; i++)
+ * cchValue = MAX_VALUE_NAME
+ * achValue[0] = '\0'
+ * retCode = RegEnumValue(hKey, i, achValue, &cchValue, NULL, NULL, NULL, NULL)
+ *
+ * RegCloseKey(hTestKey);
+ *
+ * https://msdn.microsoft.com/en-us/library/windows/desktop/aa365915(v=vs.85).aspx
+ * ULONG WINAPI GetAdaptersAddresses(
+  _In_    ULONG                 Family,
+  _In_    ULONG                 Flags,
+  _In_    PVOID                 Reserved,
+  _Inout_ PIP_ADAPTER_ADDRESSES AdapterAddresses, IP_ADAPTER_ADDRESSES
+  _Inout_ PULONG                SizePointer, size of the buffer
+  Returns ERROR_SUCCESS or an error code
+);
+ *
+ * https://msdn.microsoft.com/en-us/library/windows/desktop/aa365917(v=vs.85).aspx
+ * DWORD GetAdaptersInfo(
+  _Out_   PIP_ADAPTER_INFO pAdapterInfo, // IP_ADAPTER_INFO
+  _Inout_ PULONG           pOutBufLen // ULONG size
+); Returns ERROR_SUCCESS or an error code
+ *
+ * GetInterfaceInfo: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365947(v=vs.85).aspx
+ * DWORD GetInterfaceInfo(
+  _Out_   PIP_INTERFACE_INFO pIfTable,
+  _Inout_ PULONG             dwOutBufLen
+);
+ *
+ */
+#[cfg(windows)]
+fn get_net_info_extra() {
+    use winapi::advapi32::{RegOpenKeyEx, RegQueryInfoKey, RegEnumKeyEx, RegEnumValue};
+    use winapi::iphlpapi::{GetAdaptersAddresses}
+    // #define HKEY_LOCAL_MACHINE (( HKEY ) (ULONG_PTR)((LONG)0x80000002) )
+    //
+
 }
 
 /**
