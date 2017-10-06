@@ -42,8 +42,7 @@ struct PcapPktHdr {
 
 }
 
-const LIB_NAME: String =
-    String::from("C:\\Windows\\System32\\Npcap\\wpcap.dll");
+static LIB_NAME: &'static str = "C:\\Windows\\System32\\Npcap\\wpcap.dll";
 
 // sa_family constants
 //#define AF_UNSPEC 0
@@ -227,30 +226,58 @@ type PcapFreeAllDevs = unsafe fn (alldevsp: *mut libc::c_void);
 // static mut pcap_findalldevs: libloading::Symbol<PcapFindAllDevs> = Nil;
 // static mut pcap_freealldevs: libloading::Symbol<PcapFreeAllDevs> = Nil;
 
-struct AppContext<'a> {
-    pcap_findalldevs: Symbol<'a, PcapFindAllDevs>,
-    pcap_freealldevs: Symbol<'a, PcapFreeAllDevs>
-}
+// #[derive(Default)]
+// pub struct AppContext {
+//     pcap_dll: libloading::Library,
+//     pcap_findalldevs: Symbol<'static, PcapFindAllDevs>,
+//     pcap_freealldevs: Symbol<'static, PcapFreeAllDevs>,
+// }
 
+/**
+ * Convert a foreign c string to a standard string
+ */
 fn convert_forn_str(in_str: *const libc::c_char) -> String {
     unsafe {
         return CStr::from_ptr(in_str).to_string_lossy().into_owned();
     }
 }
 
-fn print_ip4_bytes(in_bytes: &[u8]) {
+/**
+ * Print an IPv4 address byte sequence in dot format
+ */
+// fn print_ip4_bytes(in_bytes: &[u8]) {
+//     let ip4_addr_str = format!("{}.{}.{}.{}", in_bytes[2], in_bytes[3],
+//     in_bytes[0], in_bytes[1]);
+//     println!("address: {}", ip4_addr_str);
+// }
+
+fn ip4_bytes_to_str(in_bytes: &[u8]) -> String {
     let ip4_addr_str = format!("{}.{}.{}.{}", in_bytes[2], in_bytes[3],
     in_bytes[0], in_bytes[1]);
-    println!("address: {}", ip4_addr_str);
+    return ip4_addr_str;
 }
 
-fn call_findalldevs(app_ctx: &AppContext) -> *mut PcapInterface {
+fn call_freealldevs(in_alldevs: *mut PcapInterface) {
+    let _pcap_dll = Library::new(LIB_NAME).unwrap();
     unsafe {
+        let pcap_freealldevs: Symbol<PcapFreeAllDevs> = _pcap_dll.get(b"pcap_freealldevs").unwrap();
+        pcap_freealldevs(in_alldevs as *mut libc::c_void);
+    }
+}
+
+/**
+ * Call the unsafe pcap findalldevs
+ */
+fn call_findalldevs() -> *mut PcapInterface {
+    let _pcap_dll = Library::new(LIB_NAME).unwrap();
+
+    unsafe {
+        let pcap_findalldevs: Symbol<PcapFindAllDevs> = _pcap_dll.get(b"pcap_findalldevs").unwrap();
+
         let mut alldevs = 0 as *mut PcapInterface;
         let errbuf_ptr = 0 as *mut u8;
         let errbuf = std::slice::from_raw_parts_mut(errbuf_ptr, 4096);
-        let result = (app_ctx.pcap_findalldevs)(
-            (&mut alldevs) as *mut _ as *mut *mut libc::c_void, errbuf_ptr);
+        let result = pcap_findalldevs(&mut alldevs as *mut _ as *mut *mut libc::c_void, errbuf_ptr);
         if result == -1 {
             println!("failed to call pcap_findalldevs");
             return 0 as *mut PcapInterface;
@@ -259,37 +286,44 @@ fn call_findalldevs(app_ctx: &AppContext) -> *mut PcapInterface {
     }
 }
 
-fn process_network_interfaces(app_ctx: &AppContext) -> String {
+/**
+ * Process network interfaces
+ */
+fn process_network_interfaces() -> String {
     println!("processing network interfaces");
     let found_name: String;
 
     unsafe {
         let pcap_handle: *mut PcapCapInstance;
 
-        let alldevs: *mut PcapInterface = call_findalldevs(app_ctx);
+        let alldevs: *mut PcapInterface = call_findalldevs();
         if alldevs.is_null() {
             println!("error retrieving device list");
             return String::from("");
         }
 
         // Get the First Pcap Device Struct
-        let curr_dev_ptr = alldevs as *mut PcapInterface;
+        let mut curr_dev_ptr = alldevs as *mut PcapInterface;
         while !curr_dev_ptr.is_null() {
-            let curr_dev: &PcapInterface = &*alldevs;
+            let curr_dev: &PcapInterface = &*curr_dev_ptr;
+            println!("device:");
             let name: String = convert_forn_str(curr_dev.name);
+            println!("\tname: {}", name);
             let description: String = convert_forn_str(curr_dev.description);
-
-            let pcap_addr_ptr = curr_dev.addresses as *mut PcapAddr;
+            println!("\tdescription: \"{}\"", description);
+            let mut pcap_addr_ptr = curr_dev.addresses as *mut PcapAddr;
+            println!("\taddresses:");
             while !pcap_addr_ptr.is_null() {
                 let pcap_addr: &PcapAddr = &*pcap_addr_ptr;
                 if !pcap_addr.addr.is_null() {
                     let address: &SockAddr = &*pcap_addr.addr;
-                    println!("address family: {}", address.sa_family);
+                    println!("\t\taddress family: {}", address.sa_family);
                     if address.sa_family == AF_INET {
-                        print_ip4_bytes(&address.sa_data[0..4]);
+                        let ip4_str = ip4_bytes_to_str(&address.sa_data[0..4]);
+                        println!("\t\taddress: {}", ip4_str);
                     }
                 } else {
-                    println!("address is null");
+                    println!("\t\taddress is null");
                 }
                 pcap_addr_ptr = pcap_addr.next as *mut PcapAddr;
             }
@@ -297,23 +331,31 @@ fn process_network_interfaces(app_ctx: &AppContext) -> String {
         }
 
         println!("freeing alldevs");
-        (app_ctx.pcap_freealldevs)(alldevs as *mut libc::c_void);
+        call_freealldevs(alldevs);
     }
 
     return String::from("");
 }
 
-fn init_app_ctx<'a>() -> AppContext<'a> {
-    unsafe {
-        let pcap_dll = Library::new(LIB_NAME).unwrap();
+/**
+ * Initialize the app context.
+ */
+// fn init_app_ctx() -> AppContext {
+//     let _pcap_dll = Library::new(LIB_NAME).unwrap();
 
-        let app_ctx = AppContext {
-            pcap_findalldevs: pcap_dll.get(b"pcap_findalldevs").unwrap(),
-            pcap_freealldevs: pcap_dll.get(b"pcap_freealldevs").unwrap(),
-        };
-        return app_ctx;
-    }
-}
+//     unsafe {
+//         let app_ctx: AppContext = AppContext {
+//             pcap_dll: _pcap_dll,
+//             pcap_findalldevs: std::default,
+//             pcap_freealldevs: std::default,
+//         };
+
+//         // _pcap_dll.get(b"pcap_findalldevs").unwrap(),
+//         //  _pcap_dll.get(b"pcap_freealldevs").unwrap(
+
+//         return app_ctx;
+//     }
+// }
 
 /**
  * Main function
@@ -321,8 +363,7 @@ fn init_app_ctx<'a>() -> AppContext<'a> {
 fn main() {
     println!("PCAP program");
 
-    let app_ctx: AppContext = init_app_ctx();
-    let found_dev_name = process_network_interfaces(&app_ctx);
+    let found_dev_name = process_network_interfaces();
 
     println!("found dev name: {}", found_dev_name);
 

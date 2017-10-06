@@ -6,3 +6,6 @@ authors = ["Josh Madden <cyrex562@gmail.com>"]
 [dependencies]
 libc = "0.2"
 libloading = "0.4"
+
+[target.'cfg(windows)'.dependencies]
+winapi = "0.3"
